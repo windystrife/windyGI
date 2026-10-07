@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WindyGI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root { --ground: #101316; --panel: #171c21; --line: #2a3139; --ink: #e7eaec; --muted: #98a2ab; --sun: #f0a640; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font: 16px/1.5 "Source Sans 3", "Segoe UI", system-ui, sans-serif; margin: 0; }
+main { max-width: 880px; margin: 0 auto; padding: 48px 16px 64px; display: grid; gap: 24px; }
+.eyebrow { font: 500 12px/1.2 "IBM Plex Mono", ui-monospace, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--sun); }
+h1 { font: 600 clamp(34px, 6vw, 56px)/1.05 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; margin: 0; }
+p { margin: 0; color: var(--muted); max-width: 64ch; }
+a.card { display: grid; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; color: var(--ink); text-decoration: none; }
+a.card:hover, a.card:focus-visible { border-color: var(--sun); outline: none; }
+a.card b { font: 600 22px "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; }
+a.card span { color: var(--muted); font-size: 15px; }
+</style>
+<main>
+  <div class="eyebrow">Real-time global illumination for Unreal Engine 4.27</div>
+  <h1>WindyGI</h1>
+  <p>Comparison sheets of WindyGI against Lumen from UE 5.8 and the UE 5.8 path tracer: images on the same views with matched settings, and frame times on a desktop GPU and a handheld.</p>
+  <a class="card" href="sw/"><b>WindyGI Software</b><span>Software GI against Lumen SW: Map_RT_Daylight and TestGIMap, Low to Epic, RX 9070 XT at 4K and Radeon 680M at 720p, with the path tracer as reference.</span></a>
+</main>
+</html>

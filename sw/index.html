@@ -1,0 +1,300 @@
+<meta charset="utf-8">
+<title>WindyGI SW Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dark light-table. Map and tier pickers and the verdicts up top, one big comparison viewer (the images are the point), a
+   filmstrip of views, then one ledger per machine (frame time, FPS, GI cost) and the measurement notes. Single dark theme on
+   purpose: images are judged on a neutral dark ground. */
+:root {
+  --ground: #101316;      /* page */
+  --panel: #171c21;       /* raised surfaces */
+  --line: #2a3139;        /* hairlines */
+  --ink: #e7eaec;         /* text */
+  --muted: #98a2ab;       /* secondary text */
+  --sun: #f0a640;         /* accent: the daylight that is being bounced */
+  --faster: #52c7a0;      /* WindyGI faster */
+  --slower: #ee7269;      /* WindyGI slower */
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--ground); color: var(--ink); font: 16px/1.5 var(--body); margin: 0; }
+.wrap { max-width: 1680px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: .01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4vw, 48px); line-height: 1.05; }
+h2 { font-size: 26px; }
+h3 { font-size: 18px; color: var(--muted); font-weight: 500; }
+p { margin: 0; max-width: 76ch; }
+.eyebrow { font: 500 12px/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--sun); }
+.muted { color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 14px; }
+.pickers { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; position: sticky; top: 0; z-index: 3; background: var(--ground); padding-block: 8px; }
+.pickers .lbl { font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.verdict .big { font: 600 30px/1.1 var(--display); }
+.verdict .big.good { color: var(--faster); }
+.verdict .big.bad { color: var(--slower); }
+.verdict .fps { font: 500 15px var(--mono); }
+.verdict .small { font-size: 14px; color: var(--muted); }
+
+/* viewer */
+.viewer { display: grid; gap: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex-wrap: wrap; }
+.seg button { background: transparent; color: var(--muted); border: 0; padding: 7px 12px; font: 600 14px var(--body); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: inset 0 -2px 0 var(--sun); }
+.seg button:focus-visible, select:focus-visible, .thumb:focus-visible, input[type=range]:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+label.pick { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 14px var(--body); max-width: 100%; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #000; border-radius: 6px; overflow: hidden; user-select: none; touch-action: pan-y; }
+.stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.stage .top { clip-path: inset(0 0 0 var(--cut, 50%)); }
+.stage .handle { position: absolute; top: 0; bottom: 0; left: var(--cut, 50%); width: 2px; background: var(--sun); transform: translateX(-1px); pointer-events: none; }
+.stage .handle::after { content: ""; position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--sun); background: rgba(16,19,22,.6); transform: translate(-50%, -50%); }
+.stage .tag { position: absolute; top: 10px; font: 600 14px var(--display); letter-spacing: .04em; background: rgba(16,19,22,.72); padding: 4px 9px; border-radius: 4px; }
+.stage .tag.l { left: 10px; } .stage .tag.r { right: 10px; }
+.stage input[type=range] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; margin: 0; }
+.stage .missing { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 15px; text-align: center; padding: 16px; }
+.readout { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 15px; }
+.readout b { font-weight: 600; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.thumb { position: relative; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; background: #000; padding: 0; cursor: pointer; aspect-ratio: 16 / 9; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .82; }
+.thumb span { position: absolute; left: 5px; bottom: 4px; font: 500 12px var(--mono); background: rgba(16,19,22,.75); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+.thumb[aria-current="true"] { border-color: var(--sun); }
+.thumb[aria-current="true"] img { opacity: 1; }
+.thumb .pt { position: absolute; right: 5px; top: 4px; font: 600 10px var(--mono); color: var(--ground); background: var(--sun); padding: 0 4px; border-radius: 3px; }
+
+/* ledgers */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 14px; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font: 600 13px var(--body); color: var(--muted); background: var(--panel); }
+thead tr:first-child th { color: var(--ink); text-align: center; border-bottom: 0; }
+th.grp, td.grp { border-left: 1px solid var(--line); }
+td:first-child, th:first-child { text-align: left; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.sum td { font-weight: 500; background: var(--panel); }
+.delta { display: inline-grid; grid-template-columns: 58px 60px; align-items: center; gap: 6px; }
+.bar { height: 8px; position: relative; background: var(--line); border-radius: 2px; }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.good { color: var(--faster); } .bad { color: var(--slower); }
+.pending { padding: 18px; color: var(--muted); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; }
+.notes ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.notes li { max-width: 70ch; }
+code { font: 13px var(--mono); background: var(--panel); padding: 1px 5px; border-radius: 3px; }
+section { display: grid; gap: 14px; min-width: 0; }
+footer { color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) { .wrap { padding-inline: 16px; } .stage .tag { font-size: 12px; } .verdict .big { font-size: 26px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">UE 4.27 WindyGI SW against UE 5.8 Lumen SW and the UE 5.8 path tracer</div>
+  <h1>WindyGI Software: the sheet</h1>
+  <p class="muted" id="lead"></p>
+</header>
+
+<div class="pickers" role="group" aria-label="Map and tier">
+  <span class="lbl">Map</span>
+  <div class="seg" id="maps"></div>
+  <span class="lbl">Tier</span>
+  <div class="seg" id="tiers"></div>
+</div>
+
+<div class="verdicts" id="verdicts" aria-live="polite"></div>
+
+<section class="viewer" aria-label="Image comparison">
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Exposure">
+      <button id="m-pt" type="button">Fixed EV · with the path tracer</button>
+      <button id="m-play" type="button">As played · auto exposure</button>
+    </div>
+    <label class="pick">Left <select id="left"></select></label>
+    <label class="pick">Right <select id="right"></select></label>
+  </div>
+  <div class="stage" id="stage">
+    <img id="imgL" alt="">
+    <img id="imgR" class="top" alt="">
+    <div class="handle"></div>
+    <div class="tag l" id="tagL"></div>
+    <div class="tag r" id="tagR"></div>
+    <div class="missing" id="missing" hidden>No image for this combination yet</div>
+    <input type="range" id="cut" min="0" max="100" value="50" step="0.1" aria-label="Comparison divider">
+  </div>
+  <div class="readout" id="readout"></div>
+  <div class="strip" id="strip" role="list"></div>
+  <p class="muted" id="howto"></p>
+</section>
+
+<section aria-labelledby="h-k4">
+  <h2 id="h-k4"></h2>
+  <p class="muted" id="k4-lead"></p>
+  <div class="tablewrap" id="k4"></div>
+</section>
+
+<section aria-labelledby="h-igpu">
+  <h2 id="h-igpu"></h2>
+  <p class="muted" id="igpu-lead"></p>
+  <div class="tablewrap" id="igpu"></div>
+</section>
+
+<section aria-labelledby="h-how">
+  <h2 id="h-how">How it was measured</h2>
+  <div class="notes" id="notes"></div>
+</section>
+
+<footer id="foot"></footer>
+</div>
+
+<script>
+const D = {"maps": {"RT": {"label": "Map_RT_Daylight", "views": ["v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24"], "fixed": ["v01", "v14", "v15", "v18", "v02", "v05", "v03", "v24"], "ev": {"v01": 6, "v14": 6, "v15": 7, "v18": 7.5, "v02": 3, "v05": 3, "v03": 4.5, "v24": 4.5}, "perf": "k4", "platform": "RX 9070 XT, 4K", "noPT": "No path-traced reference here: the UE 5.8 path tracer's scene lacks this map's undergrowth and most of the canopy outdoors, so it would not be a fair reference."}, "TG": {"label": "TestGIMap", "views": ["tgstart", "tgturned", "tgback", "tgleft", "V01", "V02", "V03", "V07", "V09", "V10"], "fixed": [], "ev": {}, "perf": "igpu", "platform": "Radeon 680M, 720p", "noPT": "No path-traced image for this view.", "names": {"tgstart": "start", "tgturned": "turned", "tgback": "back", "tgleft": "left"}}}, "files": ["RT-PT-v01", "RT-PT-v14", "RT-PT-v15", "RT-PT-v18", "RT-WL-v01", "RT-WL-pt-v01", "RT-WL-v02", "RT-WL-pt-v02", "RT-WL-v03", "RT-WL-pt-v03", "RT-WL-v04", "RT-WL-v05", "RT-WL-pt-v05", "RT-WL-v06", "RT-WL-v07", "RT-WL-v08", "RT-WL-v09", "RT-WL-v10", "RT-WL-v11", "RT-WL-v12", "RT-WL-v13", "RT-WL-v14", "RT-WL-pt-v14", "RT-WL-v15", "RT-WL-pt-v15", "RT-WL-v16", "RT-WL-v17", "RT-WL-v18", "RT-WL-pt-v18", "RT-WL-v19", "RT-WL-v20", "RT-WL-v21", "RT-WL-v22", "RT-WL-v23", "RT-WL-v24", "RT-WL-pt-v24", "RT-WM-v01", "RT-WM-pt-v01", "RT-WM-v02", "RT-WM-pt-v02", "RT-WM-v03", "RT-WM-pt-v03", "RT-WM-v04", "RT-WM-v05", "RT-WM-pt-v05", "RT-WM-v06", "RT-WM-v07", "RT-WM-v08", "RT-WM-v09", "RT-WM-v10", "RT-WM-v11", "RT-WM-v12", "RT-WM-v13", "RT-WM-v14", "RT-WM-pt-v14", "RT-WM-v15", "RT-WM-pt-v15", "RT-WM-v16", "RT-WM-v17", "RT-WM-v18", "RT-WM-pt-v18", "RT-WM-v19", "RT-WM-v20", "RT-WM-v21", "RT-WM-v22", "RT-WM-v23", "RT-WM-v24", "RT-WM-pt-v24", "RT-LL-v01", "RT-LL-pt-v01", "RT-LL-v02", "RT-LL-pt-v02", "RT-LL-v03", "RT-LL-pt-v03", "RT-LL-v04", "RT-LL-v05", "RT-LL-pt-v05", "RT-LL-v06", "RT-LL-v07", "RT-LL-v08", "RT-LL-v09", "RT-LL-v10", "RT-LL-v11", "RT-LL-v12", "RT-LL-v13", "RT-LL-v14", "RT-LL-pt-v14", "RT-LL-v15", "RT-LL-pt-v15", "RT-LL-v16", "RT-LL-v17", "RT-LL-v18", "RT-LL-pt-v18", "RT-LL-v19", "RT-LL-v20", "RT-LL-v21", "RT-LL-v22", "RT-LL-v23", "RT-LL-v24", "RT-LL-pt-v24", "RT-LM-v01", "RT-LM-pt-v01", "RT-LM-v02", "RT-LM-pt-v02", "RT-LM-v03", "RT-LM-pt-v03", "RT-LM-v04", "RT-LM-v05", "RT-LM-pt-v05", "RT-LM-v06", "RT-LM-v07", "RT-LM-v08", "RT-LM-v09", "RT-LM-v10", "RT-LM-v11", "RT-LM-v12", "RT-LM-v13", "RT-LM-v14", "RT-LM-pt-v14", "RT-LM-v15", "RT-LM-pt-v15", "RT-LM-v16", "RT-LM-v17", "RT-LM-v18", "RT-LM-pt-v18", "RT-LM-v19", "RT-LM-v20", "RT-LM-v21", "RT-LM-v22", "RT-LM-v23", "RT-LM-v24", "RT-LM-pt-v24"], "perf": {"k4": {"low": [{"view": "v01", "w": {"ft": 9.993, "fps": 100.1, "files": 2}, "l": {"ft": 9.918, "fps": 100.8, "files": 2}, "w_gi": 0.617, "l_gi": null}, {"view": "v02", "w": {"ft": 15.089, "fps": 66.3, "files": 2}, "l": {"ft": 14.291, "fps": 70.0, "files": 2}, "w_gi": 0.806, "l_gi": null}, {"view": "v03", "w": {"ft": 15.812, "fps": 63.2, "files": 2}, "l": {"ft": 15.324, "fps": 65.3, "files": 2}, "w_gi": 0.694, "l_gi": null}, {"view": "v04", "w": {"ft": 13.619, "fps": 73.4, "files": 2}, "l": {"ft": 13.117, "fps": 76.2, "files": 2}, "w_gi": 0.65, "l_gi": null}, {"view": "v05", "w": {"ft": 10.486, "fps": 95.4, "files": 2}, "l": {"ft": 10.155, "fps": 98.5, "files": 2}, "w_gi": 0.696, "l_gi": null}, {"view": "v06", "w": {"ft": 8.284, "fps": 120.7, "files": 2}, "l": {"ft": 7.889, "fps": 126.8, "files": 2}, "w_gi": 0.721, "l_gi": null}, {"view": "v07", "w": {"ft": 7.993, "fps": 125.1, "files": 2}, "l": {"ft": 7.463, "fps": 134.0, "files": 2}, "w_gi": 0.63, "l_gi": null}, {"view": "v08", "w": {"ft": 9.935, "fps": 100.7, "files": 2}, "l": {"ft": 9.394, "fps": 106.4, "files": 2}, "w_gi": 0.69, "l_gi": null}, {"view": "v09", "w": {"ft": 7.337, "fps": 136.3, "files": 2}, "l": {"ft": 6.993, "fps": 143.0, "files": 2}, "w_gi": 0.656, "l_gi": null}, {"view": "v10", "w": {"ft": 6.768, "fps": 147.8, "files": 2}, "l": {"ft": 6.172, "fps": 162.0, "files": 2}, "w_gi": 0.682, "l_gi": null}, {"view": "v11", "w": {"ft": 6.491, "fps": 154.1, "files": 2}, "l": {"ft": 6.272, "fps": 159.4, "files": 2}, "w_gi": 0.639, "l_gi": null}, {"view": "v12", "w": {"ft": 9.28, "fps": 107.8, "files": 2}, "l": {"ft": 9.056, "fps": 110.4, "files": 2}, "w_gi": 0.679, "l_gi": null}, {"view": "v13", "w": {"ft": 9.051, "fps": 110.5, "files": 2}, "l": {"ft": 8.96, "fps": 111.6, "files": 2}, "w_gi": 0.667, "l_gi": null}, {"view": "v14", "w": {"ft": 12.669, "fps": 78.9, "files": 2}, "l": {"ft": 12.847, "fps": 77.8, "files": 2}, "w_gi": 0.635, "l_gi": null}, {"view": "v15", "w": {"ft": 10.124, "fps": 98.8, "files": 2}, "l": {"ft": 10.069, "fps": 99.3, "files": 2}, "w_gi": 0.626, "l_gi": null}, {"view": "v16", "w": {"ft": 8.865, "fps": 112.8, "files": 2}, "l": {"ft": 8.623, "fps": 116.0, "files": 2}, "w_gi": 0.623, "l_gi": null}, {"view": "v17", "w": {"ft": 8.817, "fps": 113.4, "files": 2}, "l": {"ft": 8.559, "fps": 116.8, "files": 2}, "w_gi": 0.629, "l_gi": null}, {"view": "v18", "w": {"ft": 7.142, "fps": 140.0, "files": 2}, "l": {"ft": 6.666, "fps": 150.0, "files": 2}, "w_gi": 0.573, "l_gi": null}, {"view": "v19", "w": {"ft": 9.1, "fps": 109.9, "files": 2}, "l": {"ft": 7.606, "fps": 131.5, "files": 2}, "w_gi": 1.628, "l_gi": null}, {"view": "v20", "w": {"ft": 14.189, "fps": 70.5, "files": 2}, "l": {"ft": 13.826, "fps": 72.3, "files": 2}, "w_gi": 0.677, "l_gi": null}, {"view": "v21", "w": {"ft": 12.063, "fps": 82.9, "files": 2}, "l": {"ft": 11.677, "fps": 85.6, "files": 2}, "w_gi": 0.628, "l_gi": null}, {"view": "v22", "w": {"ft": 9.557, "fps": 104.6, "files": 2}, "l": {"ft": 9.129, "fps": 109.5, "files": 2}, "w_gi": 0.67, "l_gi": null}, {"view": "v23", "w": {"ft": 7.69, "fps": 130.0, "files": 2}, "l": {"ft": 7.006, "fps": 142.7, "files": 2}, "w_gi": 0.624, "l_gi": null}, {"view": "v24", "w": {"ft": 15.932, "fps": 62.8, "files": 2}, "l": {"ft": 15.652, "fps": 63.9, "files": 2}, "w_gi": 0.796, "l_gi": null}], "med": [{"view": "v01", "w": {"ft": 10.505, "fps": 95.2, "files": 2}, "l": {"ft": 11.019, "fps": 90.8, "files": 2}, "w_gi": 1.129, "l_gi": 1.101}, {"view": "v02", "w": {"ft": 15.55, "fps": 64.3, "files": 2}, "l": {"ft": 15.541, "fps": 64.3, "files": 2}, "w_gi": 1.267, "l_gi": 1.25}, {"view": "v03", "w": {"ft": 16.225, "fps": 61.6, "files": 2}, "l": {"ft": 16.501, "fps": 60.6, "files": 2}, "w_gi": 1.107, "l_gi": 1.177}, {"view": "v04", "w": {"ft": 14.048, "fps": 71.2, "files": 2}, "l": {"ft": 14.259, "fps": 70.1, "files": 2}, "w_gi": 1.079, "l_gi": 1.142}, {"view": "v05", "w": {"ft": 10.924, "fps": 91.5, "files": 2}, "l": {"ft": 11.239, "fps": 89.0, "files": 2}, "w_gi": 1.134, "l_gi": 1.084}, {"view": "v06", "w": {"ft": 8.784, "fps": 113.8, "files": 2}, "l": {"ft": 9.009, "fps": 111.0, "files": 2}, "w_gi": 1.221, "l_gi": 1.12}, {"view": "v07", "w": {"ft": 8.499, "fps": 117.7, "files": 2}, "l": {"ft": 8.547, "fps": 117.0, "files": 2}, "w_gi": 1.136, "l_gi": 1.084}, {"view": "v08", "w": {"ft": 10.377, "fps": 96.4, "files": 2}, "l": {"ft": 10.505, "fps": 95.2, "files": 2}, "w_gi": 1.132, "l_gi": 1.111}, {"view": "v09", "w": {"ft": 7.796, "fps": 128.3, "files": 2}, "l": {"ft": 8.089, "fps": 123.6, "files": 2}, "w_gi": 1.115, "l_gi": 1.096}, {"view": "v10", "w": {"ft": 7.267, "fps": 137.6, "files": 2}, "l": {"ft": 7.269, "fps": 137.6, "files": 2}, "w_gi": 1.181, "l_gi": 1.097}, {"view": "v11", "w": {"ft": 6.906, "fps": 144.8, "files": 2}, "l": {"ft": 7.308, "fps": 136.8, "files": 2}, "w_gi": 1.054, "l_gi": 1.036}, {"view": "v12", "w": {"ft": 9.774, "fps": 102.3, "files": 2}, "l": {"ft": 10.19, "fps": 98.1, "files": 2}, "w_gi": 1.173, "l_gi": 1.134}, {"view": "v13", "w": {"ft": 9.526, "fps": 105.0, "files": 2}, "l": {"ft": 10.055, "fps": 99.5, "files": 2}, "w_gi": 1.142, "l_gi": 1.095}, {"view": "v14", "w": {"ft": 13.203, "fps": 75.7, "files": 2}, "l": {"ft": 14.016, "fps": 71.3, "files": 2}, "w_gi": 1.169, "l_gi": 1.169}, {"view": "v15", "w": {"ft": 10.664, "fps": 93.8, "files": 2}, "l": {"ft": 11.134, "fps": 89.8, "files": 2}, "w_gi": 1.166, "l_gi": 1.065}, {"view": "v16", "w": {"ft": 9.346, "fps": 107.0, "files": 2}, "l": {"ft": 9.697, "fps": 103.1, "files": 2}, "w_gi": 1.104, "l_gi": 1.074}, {"view": "v17", "w": {"ft": 9.305, "fps": 107.5, "files": 2}, "l": {"ft": 9.636, "fps": 103.8, "files": 2}, "w_gi": 1.117, "l_gi": 1.077}, {"view": "v18", "w": {"ft": 7.559, "fps": 132.3, "files": 2}, "l": {"ft": 7.711, "fps": 129.7, "files": 2}, "w_gi": 0.99, "l_gi": 1.045}, {"view": "v19", "w": {"ft": 8.45, "fps": 118.3, "files": 2}, "l": {"ft": 8.68, "fps": 115.2, "files": 2}, "w_gi": 0.978, "l_gi": 1.074}, {"view": "v20", "w": {"ft": 14.539, "fps": 68.8, "files": 2}, "l": {"ft": 15.007, "fps": 66.6, "files": 2}, "w_gi": 1.027, "l_gi": 1.181}, {"view": "v21", "w": {"ft": 12.488, "fps": 80.1, "files": 2}, "l": {"ft": 12.825, "fps": 78.0, "files": 2}, "w_gi": 1.053, "l_gi": 1.148}, {"view": "v22", "w": {"ft": 9.995, "fps": 100.0, "files": 2}, "l": {"ft": 10.213, "fps": 97.9, "files": 2}, "w_gi": 1.108, "l_gi": 1.084}, {"view": "v23", "w": {"ft": 8.044, "fps": 124.3, "files": 2}, "l": {"ft": 8.101, "fps": 123.4, "files": 2}, "w_gi": 0.978, "l_gi": 1.095}, {"view": "v24", "w": {"ft": 16.328, "fps": 61.2, "files": 2}, "l": {"ft": 16.852, "fps": 59.3, "files": 2}, "w_gi": 1.192, "l_gi": 1.2}], "high": [{"view": "v01", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v02", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v03", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v04", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v05", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v06", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v07", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v08", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v09", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v10", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v11", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v12", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v13", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v14", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v15", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v16", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v17", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v18", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v19", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v20", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v21", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v22", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v23", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v24", "w": null, "l": null, "w_gi": null, "l_gi": null}], "epic": [{"view": "v01", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v02", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v03", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v04", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v05", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v06", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v07", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v08", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v09", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v10", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v11", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v12", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v13", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v14", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v15", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v16", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v17", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v18", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v19", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v20", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v21", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v22", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v23", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "v24", "w": null, "l": null, "w_gi": null, "l_gi": null}]}, "igpu": {"low": [{"view": "tgstart", "w": {"ft": 10.819, "fps": 92.4, "files": 6}, "l": {"ft": 11.019, "fps": 90.8, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "tgturned", "w": {"ft": 10.575, "fps": 94.6, "files": 6}, "l": {"ft": 9.669, "fps": 103.4, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "tgback", "w": {"ft": 13.736, "fps": 72.8, "files": 6}, "l": {"ft": 13.036, "fps": 76.7, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "tgleft", "w": {"ft": 14.098, "fps": 70.9, "files": 6}, "l": {"ft": 13.13, "fps": 76.2, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V01", "w": {"ft": 14.293, "fps": 70.0, "files": 6}, "l": {"ft": 13.156, "fps": 76.0, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V02", "w": {"ft": 12.669, "fps": 78.9, "files": 6}, "l": {"ft": 12.436, "fps": 80.4, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V03", "w": {"ft": 13.428, "fps": 74.5, "files": 6}, "l": {"ft": 13.958, "fps": 71.6, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V07", "w": {"ft": 14.123, "fps": 70.8, "files": 6}, "l": {"ft": 13.546, "fps": 73.8, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V09", "w": {"ft": 10.174, "fps": 98.3, "files": 6}, "l": {"ft": 9.635, "fps": 103.8, "files": 3}, "w_gi": null, "l_gi": null}, {"view": "V10", "w": {"ft": 13.553, "fps": 73.8, "files": 6}, "l": {"ft": 13.627, "fps": 73.4, "files": 3}, "w_gi": null, "l_gi": null}], "med": [{"view": "tgstart", "w": {"ft": 11.3, "fps": 88.5, "files": 6}, "l": {"ft": 13.244, "fps": 75.5, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "tgturned", "w": {"ft": 11.016, "fps": 90.8, "files": 6}, "l": {"ft": 12.421, "fps": 80.5, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "tgback", "w": {"ft": 14.127, "fps": 70.8, "files": 6}, "l": {"ft": 15.842, "fps": 63.1, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "tgleft", "w": {"ft": 14.56, "fps": 68.7, "files": 6}, "l": {"ft": 15.804, "fps": 63.3, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V01", "w": {"ft": 14.838, "fps": 67.4, "files": 6}, "l": {"ft": 15.843, "fps": 63.1, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V02", "w": {"ft": 13.246, "fps": 75.5, "files": 6}, "l": {"ft": 15.077, "fps": 66.3, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V03", "w": {"ft": 14.062, "fps": 71.1, "files": 6}, "l": {"ft": 16.315, "fps": 61.3, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V07", "w": {"ft": 14.652, "fps": 68.2, "files": 6}, "l": {"ft": 16.455, "fps": 60.8, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V09", "w": {"ft": 10.525, "fps": 95.0, "files": 6}, "l": {"ft": 12.453, "fps": 80.3, "files": 6}, "w_gi": null, "l_gi": null}, {"view": "V10", "w": {"ft": 13.999, "fps": 71.4, "files": 6}, "l": {"ft": 16.624, "fps": 60.2, "files": 6}, "w_gi": null, "l_gi": null}], "high": [{"view": "tgstart", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgturned", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgback", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgleft", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V01", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V02", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V03", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V07", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V09", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V10", "w": null, "l": null, "w_gi": null, "l_gi": null}], "epic": [{"view": "tgstart", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgturned", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgback", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "tgleft", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V01", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V02", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V03", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V07", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V09", "w": null, "l": null, "w_gi": null, "l_gi": null}, {"view": "V10", "w": null, "l": null, "w_gi": null, "l_gi": null}]}}, "tierLead": {"k4": {"low": "Lumen Low has no GI at all, so the difference is what WindyGI's GI costs over a frame without any. At v19 one of the two WindyGI processes ran 2 ms slow throughout; without it, the Low mean is +0.36 ms.", "med": "At 4K, WindyGI Medium's GI costs what Lumen Medium's does; the lead comes from UE 4.27's cheaper base frame (0.31 ms, GI off in both). v02 is a tie: +0.008 ms here, -0.01 ± 0.04 ms over four more process pairs (FTV). The machine streamed its screen over Parsec during this session, the same for both engines.", "high": "High and Epic were measured on 7 October in one session, interleaved, with their GI-off runs (FINO2) in the same session.", "epic": "High and Epic were measured on 7 October in one session, interleaved, with their GI-off runs (FINO2) in the same session."}, "igpu": {"low": "Session TGL5 (6 October). The second Lumen Low process was lost: the handheld rebooted two minutes into it, a known reset under long Lumen loads, so Lumen Low uses one process. No WindyGI GI-off run in this session, so no GI cost yet.", "med": "Session TGL5 (6 October). The second Lumen Low process was lost: the handheld rebooted two minutes into it, a known reset under long Lumen loads, so Lumen Low uses one process. No WindyGI GI-off run in this session, so no GI cost yet.", "high": "Session TGL6 (7 October, High and Epic). GI cost against the GI-off runs of session TGL7, run right after it.", "epic": "Session TGL6 (7 October, High and Epic). GI cost against the GI-off runs of session TGL7, run right after it."}}, "verdictNotes": {"k4": {"med": "v02 a tie: -0.01 ± 0.04 ms over four more process pairs (FTV)", "low": "v19 includes one slow process (+0.36 ms mean without it)"}, "igpu": {"low": "one Lumen Low process (the handheld rebooted during the second)", "med": "", "high": "", "epic": ""}}, "lead": "WindyGI SW is a software global illumination for Unreal Engine 4.27. It combines distance-field clipmaps, a DDGI-style irradiance field with visibility, surface cards and a screen cache. This page compares it with Lumen in software mode from UE 5.8 at all four quality tiers, on two maps, with the same views and matched settings. The UE 5.8 path tracer is the reference for the light. Final build: WindySWTest-M17z.", "platforms": {"k4": {"title": "Map_RT_Daylight, RX 9070 XT, 4K", "short": "RX 9070 XT, 4K", "lead": "Mean frame time over two processes per engine, run interleaved in one session (WindySWTest-M17z, Lumen58Test 5.8), 24 views. Δ is WindyGI minus Lumen: green means WindyGI is faster. FPS is 1000 divided by the mean frame time. GI cost is GI on minus the same build with GI off, measured in the same session."}, "igpu": {"title": "TestGIMap, Radeon 680M handheld, 720p", "short": "680M, 720p", "lead": "AOKZOE A1 Pro (Ryzen 7 6800U, Radeon 680M), 1280x720 fullscreen, on AC power, TestGIMap, ten views, two processes per engine run interleaved. FPS is 1000 divided by the mean frame time. GI cost is GI on minus the same build with GI off."}}, "notes": [{"h": "Machines and builds", "items": ["Ryzen 9 7940HX, Radeon RX 9070 XT 16 GB, 64 GB RAM, Windows 11: 3840x2160 native fullscreen.", "AOKZOE A1 Pro, Ryzen 7 6800U, Radeon 680M: 1280x720 fullscreen, on AC power.", "Packaged Development builds of both projects, r.ScreenPercentage 100, TAA, no upscaler, VSync off, no frame cap.", "4K: mean FrameTime of a 400-frame CSV capture per view after 20-35 s of settling. 680M: three 80-frame captures per view after 30 s."]}, {"h": "Matched between the engines", "items": ["Fog off everywhere (ShowFlag.Fog 0); motion blur off.", "UE 5.8 shadows set to UE 4.27's values: r.Shadow.DistanceScale 0.85, RadiusThreshold 0.02, CSM.TransitionScale 0.8, PreShadowResolutionFactor 0.5, MaxResolution and MaxCSMResolution 2048, virtual shadow maps off; at 4K r.Shadow.CSM.MaxCascades 3.", "Static lighting off in both projects (r.AllowStaticLighting=False), so neither base pass writes unused lightmap data.", "No SSAO in Lumen or GI-off runs (r.AmbientOcclusionLevels 0); distance-field AO as each engine's tier sets it.", "Lumen reflections off (SSR in both); Lumen async compute on.", "UE 5.8 volumetric fog grid at UE 4.27's values (GridPixelSize 16, GridSizeZ 64); software VRS off; r.DetailMode 2.", "Local exposure 0.8 / 0.8 in both; auto exposure for the as-played images; the UE 5 window is DPI-aware."]}, {"h": "Tiers", "items": ["Low: WindyGI r.WindyGI.Software.Quality 0, which keeps GI, against Lumen Low, which has none (DiffuseIndirect off, as UE 5.8's Low).", "Medium: WindyGI Quality 1 against Lumen sg.GlobalIlluminationQuality 1 with the reference kit's Lumen Medium settings (software ray tracing).", "High: WindyGI Quality 2 against sg.GlobalIlluminationQuality 2 and UE 5.8's Lumen High settings.", "Epic: WindyGI Quality 3 against sg.GlobalIlluminationQuality 3 and UE 5.8's Lumen Epic settings (mesh SDF tracing on).", "GI off, for the GI cost: WindyGI r.WindyGI.Software.Enable 0 with DFAO off; Lumen DiffuseIndirect off with DFAO and SSAO off."]}, {"h": "Images", "items": ["1920x1080 offscreen captures from the same packaged builds and the same camera poses (aligned to the pixel).", "Fixed-EV set: one exposure per view, shared by every image, so light levels compare directly. On TestGIMap the EV of each view is the half-stop whose path-traced image is closest in mean brightness to the as-played images.", "Path tracer: UE 5.8 (editor in game mode), 2048 samples per pixel, 8 bounces, the same look settings. On Map_RT_Daylight it is shown for the four tent views only: outdoors its ray tracing scene misses the undergrowth and most of the canopy that both raster engines draw, even with ray tracing culling off.", "TestGIMap runs as a spectator (?SpectatorOnly=1): the default pawn's grey sphere and its shadow are out of every image and measurement.", "Map_RT_Daylight tent views settle 25 s after the camera cut (probe convergence); the others 10 s. TestGIMap views settle 20 s."]}, {"h": "Numbers", "items": ["FPS is 1000 divided by the mean frame time, so it averages the same way as the frame time.", "GI cost is the frame time with GI on minus the same build's with GI off, per view.", "GPU time is not shown: UE 5.8's counter adds up only the time the GPU is busy, while UE 4.27's covers the whole GPU frame, gaps included, so the two do not compare. The frame time does."]}], "foot": "WindyGI SW, branch windygi-software-427 (HEAD 7093213ce88d). Generated 2026-10-07."};
+const $ = id => document.getElementById(id);
+const TIERS = ['low', 'med', 'high', 'epic'];
+const TN = { low: 'Low', med: 'Medium', high: 'High', epic: 'Epic' };
+const TC = { low: 'L', med: 'M', high: 'H', epic: 'E' };
+const CT = { L: 'low', M: 'med', H: 'high', E: 'epic' };
+let S = { map: 'RT', mode: 'pt', tier: 'med', view: null, left: 'PT', right: 'WM' };
+try { const k = JSON.parse(localStorage.getItem('wgi-sheet2') || 'null'); if (k) S = Object.assign(S, k); } catch (e) {}
+if (!D.maps[S.map]) S.map = 'RT';
+const M = () => D.maps[S.map];
+const views = () => S.mode === 'pt' ? M().fixed : M().views;
+const hasPT = v => D.files.includes(`${S.map}-PT-${v}`);
+const label = s => s === 'PT' ? 'Path tracer (UE 5.8)' : (s[0] === 'W' ? 'WindyGI ' : 'Lumen ') + TN[CT[s[1]]] + (s === 'LL' ? ' (no GI)' : '');
+function sources() {
+  const out = S.mode === 'pt' && hasPT(S.view) ? ['PT'] : [];
+  for (const t of TIERS) out.push('W' + TC[t], 'L' + TC[t]);
+  return out;
+}
+function file(src, v) {
+  const n = src === 'PT' ? `${S.map}-PT-${v}` : S.mode === 'pt' ? `${S.map}-${src}-pt-${v}` : `${S.map}-${src}-${v}`;
+  return D.files.includes(n) ? `img/${n}.webp` : null;
+}
+const fmt = (x, d = 2, sign) => x == null ? '–' : (sign && x > 0 ? '+' : '') + x.toFixed(d);
+const vname = v => { for (const m of Object.values(D.maps)) if (m.names && m.names[v]) return m.names[v]; return v; };
+function perfRow(plat, tier, v) { return ((D.perf[plat] || {})[tier] || []).find(r => r.view === v) || null; }
+function setTier(t) {
+  S.tier = t; S.right = 'W' + TC[t];
+  S.left = S.mode === 'pt' && hasPT(S.view) ? 'PT' : 'L' + TC[t];
+  render();
+}
+function render() {
+  try { localStorage.setItem('wgi-sheet2', JSON.stringify(S)); } catch (e) {}
+  if (!views().includes(S.view)) S.view = views()[0];
+  const src = sources();
+  if (!src.includes(S.left)) S.left = 'L' + TC[S.tier];
+  if (!src.includes(S.right) || S.right === S.left) S.right = 'W' + TC[S.tier];
+  $('maps').innerHTML = Object.entries(D.maps).map(([k, m]) => `<button type="button" data-map="${k}" aria-pressed="${k === S.map}">${m.label}</button>`).join('');
+  $('tiers').innerHTML = TIERS.map(t => `<button type="button" data-tier="${t}" aria-pressed="${t === S.tier}">${TN[t]}</button>`).join('');
+  $('m-pt').setAttribute('aria-pressed', S.mode === 'pt'); $('m-play').setAttribute('aria-pressed', S.mode === 'play');
+  for (const [id, key] of [['left', 'left'], ['right', 'right']])
+    $(id).innerHTML = src.map(s => `<option value="${s}" ${S[key] === s ? 'selected' : ''}>${label(s)}</option>`).join('');
+  const a = file(S.left, S.view), b = file(S.right, S.view);
+  $('missing').hidden = !!(a && b);
+  if (a) $('imgL').src = a; else $('imgL').removeAttribute('src');
+  if (b) $('imgR').src = b; else $('imgR').removeAttribute('src');
+  $('tagL').textContent = label(S.left); $('tagR').textContent = label(S.right);
+  const ev = (M().ev || {})[S.view];
+  const r = perfRow(M().perf, S.tier, S.view);
+  let perf = `<span class="muted">${M().platform}: no numbers for this tier yet</span>`;
+  if (r && r.w && r.l) {
+    const d = r.w.ft - r.l.ft;
+    perf = `<span>${M().platform}: WindyGI <b class="num">${fmt(r.w.ft)}</b> ms (<b class="num">${fmt(r.w.fps, 1)}</b> fps) · ` +
+      `Lumen ${TN[S.tier]}${S.tier === 'low' ? ' (no GI)' : ''} <b class="num">${fmt(r.l.ft)}</b> ms (<b class="num">${fmt(r.l.fps, 1)}</b> fps) · ` +
+      `<b class="num ${d < 0 ? 'good' : 'bad'}">${fmt(d, 2, true)}</b> ms</span>` +
+      `<span>GI cost: WindyGI <b class="num">${fmt(r.w_gi)}</b> ms · Lumen <b class="num">${fmt(r.l_gi)}</b> ms</span>`;
+  }
+  $('readout').innerHTML = `<span class="num"><b>${vname(S.view)}</b></span>` +
+    (S.mode === 'pt' && ev != null ? `<span>Exposure fixed at <b class="num">EV ${ev}</b> for every image</span>` : `<span>Auto exposure, as played</span>`) +
+    (S.mode === 'pt' && !hasPT(S.view) ? `<span class="muted">${M().noPT || ''}</span>` : '') + perf;
+  $('strip').innerHTML = views().map(v => {
+    const t = file('W' + TC[S.tier], v) || file('L' + TC[S.tier], v) || file('WM', v);
+    return `<button class="thumb" role="listitem" type="button" data-v="${v}" aria-current="${v === S.view}">` +
+      (t ? `<img loading="lazy" src="${t}" alt="">` : '') + `<span>${vname(v)}</span>` + (hasPT(v) ? '<b class="pt">PT</b>' : '') + `</button>`;
+  }).join('');
+  verdicts(); ledger('k4'); ledger('igpu');
+}
+
+function gmean(rows, k) { const a = rows.map(r => r[k]).filter(x => x != null); return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; }
+function stats(plat, tier) {
+  const rows = ((D.perf[plat] || {})[tier] || []).filter(r => r.w && r.l);
+  if (!rows.length) return null;
+  const avg = f => rows.reduce((s, r) => s + f(r), 0) / rows.length;
+  const ds = rows.map(r => r.w.ft - r.l.ft);
+  return { n: rows.length, faster: ds.filter(d => d < 0).length, mean: avg(r => r.w.ft - r.l.ft), worst: Math.max(...ds),
+           wft: avg(r => r.w.ft), lft: avg(r => r.l.ft), wfps: 1000 / avg(r => r.w.ft), lfps: 1000 / avg(r => r.l.ft),
+           wgi: gmean(rows, 'w_gi'), lgi: gmean(rows, 'l_gi') };
+}
+function verdicts() {
+  $('verdicts').innerHTML = ['k4', 'igpu'].map(p => {
+    const s = stats(p, S.tier), P = D.platforms[p];
+    const k = `${TN[S.tier]} · ${P.short}`;
+    if (!s) return `<div class="verdict"><div class="small">${k}</div><div class="big">–</div><div class="small">measuring</div></div>`;
+    const note = ((D.verdictNotes || {})[p] || {})[S.tier];
+    const fps = `<div class="fps">WindyGI <b>${fmt(s.wfps, 1)}</b> fps · Lumen${S.tier === 'low' ? ' Low (no GI)' : ''} <b>${fmt(s.lfps, 1)}</b> fps</div>` +
+      `<div class="fps">GI cost: WindyGI <b>${fmt(s.wgi)}</b> ms · Lumen <b>${S.tier === 'low' ? '–' : fmt(s.lgi)}</b> ms</div>`;
+    if (S.tier === 'low')
+      return `<div class="verdict"><div class="small">${k} · WindyGI Low keeps GI, Lumen Low has none</div><div class="big">${fmt(s.mean, 2, true)} ms for GI</div>${fps}` +
+        `<div class="small">mean over ${s.n} views · faster at ${s.faster} of ${s.n}${note ? ' · ' + note : ''}</div></div>`;
+    const cls = s.faster === s.n ? 'good' : s.faster < s.n / 2 ? 'bad' : '';
+    return `<div class="verdict"><div class="small">${k} · WindyGI against Lumen</div><div class="big ${cls}">${s.faster} / ${s.n} views faster</div>${fps}` +
+      `<div class="small">mean ${fmt(s.mean, 2, true)} ms, closest ${fmt(s.worst, 2, true)} ms${note ? ' · ' + note : ''}</div></div>`;
+  }).join('');
+}
+
+const maxd = p => Math.max(0.5, ...TIERS.flatMap(t => ((D.perf[p] || {})[t] || []).filter(r => r.w && r.l).map(r => Math.abs(r.w.ft - r.l.ft))));
+function dcell(x, m, cls = '') {
+  if (x == null) return `<td class="${cls}">–</td>`;
+  const w = Math.min(50, Math.abs(x) / m * 50);
+  const style = x < 0 ? `right:50%;width:${w}%;background:var(--faster)` : `left:50%;width:${w}%;background:var(--slower)`;
+  return `<td class="${cls}"><span class="delta"><span class="${x < 0 ? 'good' : 'bad'}">${fmt(x, 2, true)}</span><span class="bar"><i style="${style}"></i></span></span></td>`;
+}
+function pct(w, l) { if (w == null || l == null) return '<td>–</td>'; const x = (w / l - 1) * 100; return `<td class="${x > 0 ? 'good' : 'bad'}">${fmt(x, 1, true)} %</td>`; }
+function ledger(p) {
+  const P = D.platforms[p], rows = (D.perf[p] || {})[S.tier] || [];
+  $('h-' + p).textContent = `${P.title} · ${TN[S.tier]}`;
+  $(p + '-lead').innerHTML = P.lead + (((D.tierLead || {})[p] || {})[S.tier] ? ' ' + D.tierLead[p][S.tier] : '');
+  const ok = rows.filter(r => r.w && r.l);
+  if (!ok.length) { $(p).innerHTML = `<div class="pending">No numbers for ${TN[S.tier]} on this machine yet.</div>`; return; }
+  const m = maxd(p), lt = `Lumen ${TN[S.tier]}${S.tier === 'low' ? ' (no GI)' : ''}`;
+  const avg = f => { const a = ok.map(f).filter(x => x != null); return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; };
+  const row = (name, wft, lft, wgi, lgi, sum) =>
+    `<tr${sum ? ' class="sum"' : ''}><td>${name}</td><td class="grp">${fmt(wft)}</td><td>${fmt(lft)}</td>${dcell(wft != null && lft != null ? wft - lft : null, m)}` +
+    `<td class="grp">${fmt(wft ? 1000 / wft : null, 1)}</td><td>${fmt(lft ? 1000 / lft : null, 1)}</td>${pct(wft ? 1000 / wft : null, lft ? 1000 / lft : null)}` +
+    `<td class="grp">${fmt(wgi)}</td><td>${fmt(lgi)}</td>${dcell(wgi != null && lgi != null ? wgi - lgi : null, m)}</tr>`;
+  $(p).innerHTML = `<table><thead><tr><th></th><th class="grp" colspan="3">Frame time, ms</th><th class="grp" colspan="3">FPS</th>` +
+    `<th class="grp" colspan="3">GI cost, ms (GI on - GI off)</th></tr>` +
+    `<tr><th>View</th><th class="grp">WindyGI</th><th>${lt}</th><th>Δ</th><th class="grp">WindyGI</th><th>${lt}</th><th>Δ</th>` +
+    `<th class="grp">WindyGI</th><th>Lumen</th><th>Δ</th></tr></thead><tbody>` +
+    rows.map(r => row(vname(r.view), r.w && r.w.ft, r.l && r.l.ft, r.w_gi, r.l_gi)).join('') +
+    row('mean', avg(r => r.w.ft), avg(r => r.l.ft), avg(r => r.w_gi), avg(r => r.l_gi), true) + `</tbody></table>`;
+}
+
+$('maps').onclick = e => { const b = e.target.closest('button'); if (b) { S.map = b.dataset.map; S.view = null; setTier(S.tier); } };
+$('tiers').onclick = e => { const b = e.target.closest('button'); if (b) setTier(b.dataset.tier); };
+$('m-pt').onclick = () => { S.mode = 'pt'; if (!views().includes(S.view)) S.view = views()[0]; S.left = hasPT(S.view) ? 'PT' : 'L' + TC[S.tier]; render(); };
+$('m-play').onclick = () => { S.mode = 'play'; if (S.left === 'PT') S.left = 'L' + TC[S.tier]; render(); };
+$('left').onchange = e => { S.left = e.target.value; if (S.left === S.right) S.right = sources().find(s => s !== S.left); render(); };
+$('right').onchange = e => { S.right = e.target.value; if (S.left === S.right) S.left = sources().find(s => s !== S.right); render(); };
+$('strip').onclick = e => { const b = e.target.closest('.thumb'); if (b) { S.view = b.dataset.v; if (S.mode === 'pt' && hasPT(S.view) && S.left !== 'PT' && S.right !== 'PT') S.left = 'PT'; render(); } };
+$('cut').oninput = e => $('stage').style.setProperty('--cut', e.target.value + '%');
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'SELECT') return;
+  const vs = views(), i = vs.indexOf(S.view);
+  if (e.key === ']' || e.key === 'PageDown') { S.view = vs[(i + 1) % vs.length]; render(); }
+  if (e.key === '[' || e.key === 'PageUp') { S.view = vs[(i - 1 + vs.length) % vs.length]; render(); }
+});
+$('lead').innerHTML = D.lead;
+$('howto').textContent = 'Drag across the image to move the divider. Any two sources, any tiers. [ and ] step through the views.';
+$('notes').innerHTML = D.notes.map(n => `<div><h3>${n.h}</h3><ul>${n.items.map(i => `<li>${i}</li>`).join('')}</ul></div>`).join('');
+$('foot').innerHTML = D.foot;
+render();
+</script>
