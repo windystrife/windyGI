@@ -214,7 +214,11 @@ function tag(src) {
   const s = r && r[e], gi = r ? r[e + '_gi'] : null;
   if (!s || s.ft == null) return name + `<span class="t3">${gname()}: not measured yet</span>`;
   const g = e === 'l' && t === 'low' ? 'no GI' : `GI <b>${fmt(gi)}</b> ms`;
-  return name + `<span class="t2"><b>${fmt(1000 / s.ft, 1)}</b> FPS · ${fmt(s.ft)} ms · ${g}</span>` + `<span class="t3">${gname()}</span>`;
+  // the CPU side and the memory: the render thread's busy time on this view (UE 5.8's RenderThreadTime counts its waits, so the kit takes them off: 'rtb'),
+  // and the process's peak dedicated VRAM over the arm's run (a Windows GPU Process Memory counter; runs from 10-08 on)
+  const cpuv = s.rtb != null ? `render thread <b>${fmt(s.rtb)}</b> ms` : '', vr = s.vram_mb != null ? `VRAM <b>${fmt(s.vram_mb / 1024, 1)}</b> GB` : '';
+  const l2 = [cpuv, vr].filter(Boolean).join(' · ');
+  return name + `<span class="t2"><b>${fmt(1000 / s.ft, 1)}</b> FPS · ${fmt(s.ft)} ms · ${g}</span>` + (l2 ? `<span class="t2">${l2}</span>` : '') + `<span class="t3">${gname()}</span>`;
 }
 function setTier(t) {
   S.tier = t; S.right = 'W' + TC[t];
@@ -265,7 +269,8 @@ function stats(t) {
   const ds = rows.map(r => r.w.ft - r.l.ft), k = ds.indexOf(Math.max(...ds));
   return { n: rows.length, faster: ds.filter(d => d < 0).length, mean: gmean(rows, r => r.w.ft - r.l.ft), worst: ds[k], worstView: rows[k].view,
            wfps: 1000 / gmean(rows, r => r.w.ft), lfps: 1000 / gmean(rows, r => r.l.ft), wgi: gmean(rows, r => r.w_gi), lgi: gmean(rows, r => r.l_gi),
-           wcpu: rows.filter(r => r.w.bound === 'CPU').length, lcpu: rows.filter(r => r.l.bound === 'CPU').length };
+           wcpu: rows.filter(r => r.w.bound === 'CPU').length, lcpu: rows.filter(r => r.l.bound === 'CPU').length,
+           wrt: gmean(rows, r => r.w.rtb), lrt: gmean(rows, r => r.l.rtb), wvram: gmean(rows, r => r.w.vram_mb), lvram: gmean(rows, r => r.l.vram_mb) };
 }
 function verdicts() {
   $('verdicts').innerHTML = TIERS.map(t => {
@@ -274,7 +279,9 @@ function verdicts() {
     if (!s) return `<button type="button" class="verdict" data-tier="${t}" aria-pressed="${sel}"><span class="small">${k}</span><span class="big">–</span><span class="small">not measured yet</span></button>`;
     const cpu = s.wcpu || s.lcpu ? ` · CPU-bound views: WindyGI ${s.wcpu}, Lumen ${s.lcpu}` : '';
     const fps = `<span class="fps">WindyGI <b>${fmt(s.wfps, 1)}</b> fps · Lumen <b>${fmt(s.lfps, 1)}</b> fps</span>` +
-      `<span class="fps">GI cost: WindyGI <b>${fmt(s.wgi)}</b> ms · Lumen <b>${t === 'low' ? '–' : fmt(s.lgi)}</b> ms</span>`;
+      `<span class="fps">GI cost: WindyGI <b>${fmt(s.wgi)}</b> ms · Lumen <b>${t === 'low' ? '–' : fmt(s.lgi)}</b> ms</span>` +
+      `<span class="fps">CPU render thread: WindyGI <b>${fmt(s.wrt)}</b> ms · Lumen <b>${fmt(s.lrt)}</b> ms</span>` +
+      (s.wvram != null && s.lvram != null ? `<span class="fps">VRAM: WindyGI <b>${fmt(s.wvram / 1024, 1)}</b> GB · Lumen <b>${fmt(s.lvram / 1024, 1)}</b> GB</span>` : '');
     if (t === 'low')
       return `<button type="button" class="verdict" data-tier="${t}" aria-pressed="${sel}"><span class="small">${k} · WindyGI Low keeps GI, Lumen Low has none</span>` +
         `<span class="big">${fmt(s.mean, 2, true)} ms for GI</span>${fps}<span class="small">mean over ${s.n} views · faster at ${s.faster} of ${s.n}${cpu}${nt ? ' · ' + nt : ''}</span></button>`;
