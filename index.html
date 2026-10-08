@@ -17,6 +17,13 @@ a.card { display: grid; gap: 4px; background: var(--panel); border: 1px solid va
 a.card:hover, a.card:focus-visible { border-color: var(--sun); outline: none; }
 a.card b { font: 600 22px "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; }
 a.card span { color: var(--muted); font-size: 15px; }
+h2 { font: 600 26px/1.1 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; margin: 16px 0 0; }
+.charts { display: grid; gap: 14px; }
+.charts figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.charts a { display: block; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; line-height: 0; }
+.charts a:hover, .charts a:focus-visible { border-color: var(--sun); outline: none; }
+.charts img { width: 100%; height: auto; display: block; }
+.charts figcaption { color: var(--muted); font-size: 14px; }
 </style>
 <main>
   <div class="eyebrow">Real-time global illumination for Unreal Engine 4.27</div>
@@ -24,5 +31,20 @@ a.card span { color: var(--muted); font-size: 15px; }
   <p>Comparison sheets of WindyGI against Lumen from UE 5.8 and the UE 5.8 path tracer: images on the same views with matched settings, and frame times on a desktop GPU (both sheets) and a handheld (the software sheet).</p>
   <a class="card" href="hw/"><b>WindyGI Hardware</b><span>Hardware ray-traced GI against Lumen HWRT: Map_RT_Daylight, 24 views, Low to Epic, RX 9070 XT at 4K native. At High 82.6 against 74.3 fps and at Epic 74.0 against 56.3 fps, faster at all 24 views; the path tracer as the reference in the tent.</span></a>
   <a class="card" href="sw/"><b>WindyGI Software</b><span>Software GI against Lumen SW: Map_RT_Daylight and TestGIMap, Low to Epic, RX 9070 XT at 4K and Radeon 680M at 720p, with the path tracer as reference.</span></a>
+  <h2>At a glance</h2>
+  <div class="charts">
+    <figure>
+      <a href="sw/"><img src="charts/fps-gain.svg" alt="WindyGI FPS against Lumen per GI tier, every GPU and map" width="900" height="318"></a>
+      <figcaption>FPS against Lumen at the same GI tier, mean over the views, for every sheet, GPU and map.</figcaption>
+    </figure>
+    <figure>
+      <a href="hw/"><img src="charts/gi-cost-hw.svg" alt="GI cost per tier, WindyGI Hardware against Lumen HWRT" width="900" height="378"></a>
+      <figcaption>GI cost (GI on minus GI off) per tier, WindyGI Hardware against Lumen HWRT.</figcaption>
+    </figure>
+    <figure>
+      <a href="sw/"><img src="charts/gi-cost-sw.svg" alt="GI cost per tier, WindyGI Software against Lumen SW" width="900" height="866"></a>
+      <figcaption>GI cost per tier, WindyGI Software against Lumen SW, one panel per GPU and map.</figcaption>
+    </figure>
+  </div>
 </main>
 </html>
