@@ -30,13 +30,15 @@ def summarise(rows):
 
 MAPS = {'RT': 'Map_RT_Daylight', 'TG': 'TestGIMap'}
 rows = []
-# hardware sheet: one GPU, one map (perf.meta.gpu, perf.tiers)
-hw = sheet_data(ROOT / 'hw' / 'index.html')['perf']
-g = hw['meta']['gpu']
-for t in TIERS:
-    s = summarise(hw['tiers'].get(t, []))
-    if s:
-        rows.append({'sheet': 'hw', 'gpu': g['gpu_name'], 'res': g['gpu_res'], 'map': 'Map_RT_Daylight', 'tier': t, **s})
+# hardware sheets: one GPU and one map each (perf.meta.gpu, perf.tiers): hw/ (RX 9070 XT), then hw-<gpu_id>/ per further GPU
+for f in sorted(ROOT.glob('hw*/index.html'), key=lambda p: (p.parent.name != 'hw', p.parent.name)):
+    hw = sheet_data(f)['perf']
+    g = hw['meta']['gpu']
+    for t in TIERS:
+        s = summarise(hw['tiers'].get(t, []))
+        if s:
+            rows.append({'sheet': 'hw', 'gpu': g['gpu_name'], 'res': g['gpu_res'], 'map': 'Map_RT_Daylight', 'tier': t, **s,
+                         'machine': g.get('machine', ''), 'page': f.parent.name + '/'})
 # software sheet: several GPUs and maps (perf.gpus[].maps[map][tier])
 sw = sheet_data(ROOT / 'sw' / 'index.html')['perf']
 for g in sw['gpus']:
@@ -44,7 +46,8 @@ for g in sw['gpus']:
         for t in TIERS:
             s = summarise(tiers.get(t, []))
             if s:
-                rows.append({'sheet': 'sw', 'gpu': g['name'], 'res': g['res'], 'map': MAPS.get(mk, mk), 'tier': t, **s})
+                rows.append({'sheet': 'sw', 'gpu': g['name'], 'res': g['res'], 'map': MAPS.get(mk, mk), 'tier': t, **s,
+                             'machine': g.get('machine', ''), 'page': 'sw/'})
 out = ROOT / 'data' / 'summary.json'
 out.parent.mkdir(exist_ok=True)
 out.write_text(json.dumps({'rows': rows}, indent=1) + '\n', encoding='utf-8')

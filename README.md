@@ -57,6 +57,15 @@ Lumen Low has no GI at all, so the Low row is the price of having GI. Build: UE 
 
 The Low rows (no GI in Lumen Low) are on the sheet.
 
+## Test machines
+
+| GPU | CPU | RAM | Resolution | Used for |
+|---|---|---|---|---|
+| Radeon RX 9070 XT 16 GB | Ryzen 9 7940HX (16C / 32T) | 64 GB DDR5-4800 | 3840x2160 fullscreen | Hardware sheet, Software sheet (both maps) |
+| Radeon 680M (AOKZOE A1 Pro, on AC) | Ryzen 7 6800U (8C / 16T) | 16 GB LPDDR5-6400, shared with the iGPU | 1280x720 fullscreen | Software sheet (TestGIMap) |
+
+Both on Windows 11. Each sheet shows the machine of the GPU you pick.
+
 ## How it was measured
 
 - **Same scene, same views.** Both engines visit the same camera poses in the same order; UE 5.8 takes the FOV converted from UE 4.27's, so the framing matches pixel for pixel.
@@ -67,8 +76,11 @@ The Low rows (no GI in Lumen Low) are on the sheet.
 
 ## Adding a GPU
 
-1. Run the benchmark kit on the new GPU and rebuild the sheet that covers it (`hw/` or `sw/`): its `index.html` embeds the numbers.
-2. `python tools/build_summary.py` collects every sheet, GPU and map into `data/summary.json`.
+1. Run the benchmark kit on the new GPU and rebuild the sheet that covers it: its `index.html` embeds the numbers. The kit records the
+   test machine (CPU, cores and threads, RAM type and speed, GPU, driver, OS) next to its results, and the sheet shows it. A hardware
+   sheet holds one GPU: `hw/` is the RX 9070 XT, a further GPU gets its own `hw-<gpu>/` folder (link it from `index.html`). The software
+   sheet holds several GPUs behind its GPU picker.
+2. `python tools/build_summary.py` collects every sheet (`hw*/`, `sw/`), GPU and map into `data/summary.json`, test machine included.
 3. `python tools/make_charts.py` redraws `charts/*.svg`; each new GPU or map becomes a new panel.
 4. Add its rows to the tables above and commit.
 
