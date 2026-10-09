@@ -24,6 +24,18 @@ h2 { font: 600 26px/1.1 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans
 .charts a:hover, .charts a:focus-visible { border-color: var(--sun); outline: none; }
 .charts img { width: 100%; height: auto; display: block; }
 .charts figcaption { color: var(--muted); font-size: 14px; }
+h3 { font: 600 20px/1.15 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; margin: 8px 0 0; }
+ul.alike { margin: 0; padding-left: 20px; color: var(--muted); max-width: 72ch; display: grid; gap: 6px; }
+ul.alike b { color: var(--ink); font-weight: 600; }
+.cmp { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.cmp table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15px; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 10px 12px; border-top: 1px solid var(--line); }
+.cmp thead th { border-top: 0; background: var(--panel); font: 500 12px/1.2 "IBM Plex Mono", ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cmp thead th.w { color: var(--sun); }
+.cmp tbody th { width: 17%; font-weight: 600; color: var(--ink); }
+.cmp td { color: var(--muted); width: 41.5%; }
+.cmp td b { color: var(--ink); font-weight: 600; }
+p.note { font-size: 14px; }
 </style>
 <main>
   <div class="eyebrow">Real-time global illumination for Unreal Engine 4.27</div>
@@ -46,5 +58,47 @@ h2 { font: 600 26px/1.1 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans
       <figcaption>GI cost per tier, WindyGI Software against Lumen SW, one panel per GPU and map.</figcaption>
     </figure>
   </div>
+
+  <h2 id="vs-lumen">WindyGI and Lumen: what is alike, what differs</h2>
+  <p>WindyGI is not a port of Lumen. It solves the same problem in UE 4.27, borrows some of Lumen's building blocks and replaces others. In short:</p>
+  <ul class="alike">
+    <li><b>Same job.</b> Fully dynamic diffuse global illumination with multiple bounces, sky light and emissive surfaces, nothing baked.</li>
+    <li><b>Same tiers.</b> Low, Medium, High and Epic come from <code>sg.GlobalIlluminationQuality</code>, as in UE 5. Lumen Low has no GI; WindyGI Low keeps a cheap one.</li>
+    <li><b>Same short-range AO.</b> A depth-buffer horizon search, as Lumen's.</li>
+    <li><b>Async compute</b> on both, where the GPU supports it.</li>
+    <li><b>Reflections are not part of the comparison.</b> Both sides use screen-space reflections on the sheets; Lumen reflections are off.</li>
+  </ul>
+
+  <h3>WindyGI Hardware against Lumen with hardware ray tracing</h3>
+  <div class="cmp">
+    <table>
+      <thead><tr><th></th><th class="w">WindyGI Hardware (UE 4.27)</th><th>Lumen HWRT (UE 5.8)</th></tr></thead>
+      <tbody>
+        <tr><th>Rays</th><td>Hardware ray tracing (DXR) on UE 4.27's ray tracing scene.</td><td>Hardware ray tracing on UE 5.8's ray tracing scene.</td></tr>
+        <tr><th>Shading a hit</th><td><b>No surface cache.</b> A hit runs the material's own hit shader, takes one light sample with a shadow ray and adds the bounce from WindyGI's caches.</td><td>By default the hit reads Lumen's surface cache (mesh cards lit ahead of time); full hit lighting is an option.</td></tr>
+        <tr><th>Caches</th><td>A <b>cascaded probe volume</b> around the camera (4 cascades of 32³ probes, 1 m cells nearest, with a visibility test against leaks) at every tier; at High and Epic also a <b>world radiance cache</b> in a spatial hash.</td><td>Surface cache, screen probes and a world-space radiance cache.</td></tr>
+        <tr><th>Per pixel</th><td>No per-pixel GI rays: each pixel reads the world caches, and the rays go into keeping those caches up to date.</td><td>Screen probes trace from the visible pixels (High, Epic).</td></tr>
+        <tr><th>Medium</th><td>The probe volume alone.</td><td>An irradiance field, also probe based.</td></tr>
+        <tr><th>Low</th><td>Keeps GI: the probe volume at a low update rate.</td><td>No GI.</td></tr>
+        <tr><th>Camera cuts</th><td>Update rates run 4× for a while after a cut or a jump of more than 10 m (High and Epic) and after a tier change (every tier), so the caches catch up.</td><td>Lumen's own update speeds.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>WindyGI Software against Lumen with software ray tracing</h3>
+  <div class="cmp">
+    <table>
+      <thead><tr><th></th><th class="w">WindyGI Software (UE 4.27)</th><th>Lumen SW (UE 5.8)</th></tr></thead>
+      <tbody>
+        <tr><th>Rays</th><td>Sphere tracing of UE 4.27's <b>global distance field</b> only (256³). No ray tracing hardware needed.</td><td>Mesh distance fields near the camera, the global distance field further out.</td></tr>
+        <tr><th>Surface cache</th><td><b>The same idea, ported:</b> mesh cards capture albedo and emissive, are relit with distance-field shadows and run a three-pass radiosity on Lumen's texel budgets.</td><td>Mesh cards, relit and with radiosity.</td></tr>
+        <tr><th>Final gather</th><td>An <b>irradiance field at every tier</b>: four clipmaps of 64³ probes (1.56 m cells nearest), with depth moments against leaks and rough specular from the probes.</td><td>Irradiance field at Medium; screen probes and a radiance cache at High and Epic.</td></tr>
+        <tr><th>Extra caches</th><td>Its own hit caches: a world-space cache of on-screen surface points, a 64³ voxel cache of 25 cm voxels and a grid that finds the nearest cards.</td><td>Not used.</td></tr>
+        <tr><th>Tiers</th><td>Scale the probe budget, the resolution, the card atlas, the radiosity rate and the lights per card; foliage cards from High, landscape cards and per-pixel sky visibility from Medium.</td><td>Change the gather method and its density.</td></tr>
+        <tr><th>Hardware</th><td>Any Shader Model 5 GPU, down to a Radeon 680M handheld at 720p.</td><td>Any GPU UE 5.8's software Lumen supports.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">UE 4.27 has no Nanite and no virtual shadow maps: the UE 5.8 side runs with virtual shadow maps off and cascaded shadows matched to UE 4.27's. The light level of both is judged against the UE 5.8 path tracer, not against Lumen.</p>
 </main>
 </html>

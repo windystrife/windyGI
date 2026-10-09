@@ -116,6 +116,21 @@ The Low rows (no GI in Lumen Low) are on the sheet. Build: `windygi-software-427
 
 All on Windows 11, the game at Normal priority on an otherwise idle machine. Each sheet shows the machine of the GPU you pick.
 
+## WindyGI and Lumen: what is alike, what differs
+
+The full comparison is on the [landing page](https://windystrife.github.io/windyGI/#vs-lumen). In short:
+
+- **Alike.** Fully dynamic diffuse GI with multiple bounces, sky light and emissive, tiers from `sg.GlobalIlluminationQuality`,
+  Lumen's depth-buffer horizon search for short-range AO, async compute. Reflections are screen-space on both sides of the sheets.
+- **WindyGI Hardware vs Lumen HWRT.** Both use hardware ray tracing, but WindyGI has no surface cache: a hit runs the material's hit
+  shader plus one shadowed light sample and the bounce from WindyGI's caches, a cascaded probe volume at every tier (4 x 32³ probes, 1 m
+  cells nearest) and a world radiance cache in a spatial hash at High and Epic. There are no per-pixel GI rays (each pixel reads the
+  caches, where Lumen traces screen probes), and WindyGI Low keeps GI where Lumen Low has none.
+- **WindyGI Software vs Lumen SW.** Lumen's surface cache (mesh cards, relighting, radiosity) is ported to UE 4.27, but the rays trace
+  only the global distance field (no mesh SDFs), and the final gather is an irradiance field at every tier (Lumen uses one at Medium,
+  screen probes and a radiance cache at High and Epic), helped by caches of its own (on-screen surface points, 25 cm voxels). It runs on
+  any Shader Model 5 GPU, down to the Radeon 680M.
+
 ## How it was measured
 
 - **Same scene, same views.** Both engines visit the same camera poses in the same order; UE 5.8 takes the FOV converted from UE 4.27's, so the framing matches pixel for pixel.
