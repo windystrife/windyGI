@@ -46,6 +46,7 @@ p.note { font-size: 14px; }
 .cmp.sys table { min-width: 760px; }
 .cmp.sys tbody th { width: 16%; }
 .cmp.sys td { width: auto; }
+.cmp tr.grp th { background: var(--panel); font: 500 12px/1.2 "IBM Plex Mono", ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--sun); padding-top: 12px; }
 </style>
 <main>
   <div class="eyebrow">Real-time global illumination for Unreal Engine 4.27</div>
@@ -91,18 +92,29 @@ p.note { font-size: 14px; }
       <tbody>
         <tr class="me"><th>WindyGI Hardware</th><td>Hardware ray tracing, updating the caches</td><td>World radiance cache (spatial hash, High and Epic) and cascaded irradiance probe volumes</td><td>None: each pixel reads the caches</td><td>–</td></tr>
         <tr class="me"><th>WindyGI Software</th><td>Global distance field, sphere traced</td><td>Surface cache (mesh cards) and an irradiance field of probe clipmaps</td><td>Irradiance field, every tier</td><td>–</td></tr>
-        <tr><th>id Tech 8 (DOOM: The Dark Ages)</th><td>Hardware ray tracing, mostly for visibility</td><td>World radiance cache in a spatial hash, cascaded irradiance volumes</td><td>One ray per pixel that shades nothing: screen cache, then world cache, then volume</td><td><b>Hardware: the cache layers and the cache-first idea</b></td></tr>
+        <tr class="grp"><th colspan="5">Cache and probes first</th></tr>
+        <tr><th>id Tech 8 (DOOM: The Dark Ages; Indiana Jones and the Great Circle on an earlier version)</th><td>Hardware ray tracing, mostly for visibility</td><td>World radiance cache in a spatial hash, cascaded irradiance volumes</td><td>One ray per pixel that shades nothing: screen cache, then world cache, then volume</td><td><b>Hardware: the cache layers and the cache-first idea</b></td></tr>
         <tr><th>kajiya (Embark)</th><td>Hardware ray tracing, long rays</td><td>World irradiance cache in a spatial hash</td><td>ReSTIR, one ray per pixel</td><td><b>Hardware: where it started</b>; the radiance cache</td></tr>
-        <tr><th>RTXGI / DDGI (NVIDIA)</th><td>Hardware ray tracing from probes</td><td>Probe volumes: irradiance and depth moments</td><td>None: pixels interpolate probes</td><td><b>Hardware Low and Medium</b>: the probe volume and its leak test</td></tr>
+        <tr><th>RTXGI / DDGI (NVIDIA; The Witcher 3 next-gen)</th><td>Hardware ray tracing from probes</td><td>Probe volumes: irradiance and depth moments</td><td>None: pixels interpolate probes</td><td><b>Hardware Low and Medium</b>: the probe volume and its leak test</td></tr>
+        <tr><th>HSGI (Tencent)</th><td>Hardware ray tracing or a software path, down to phones</td><td>A hierarchy of surfels</td><td>Surfel gather</td><td>Little; a finer world cache than WindyGI's hash</td></tr>
+        <tr class="grp"><th colspan="5">Per-pixel rays, backed by probes</th></tr>
+        <tr><th>Avatar: Frontiers of Pandora (Snowdrop)</th><td>Screen space first, then short hardware rays (quarter resolution on consoles)</td><td>Four probe cascades that are re-lit without re-tracing; a light cache as the ray fallback</td><td>Per pixel; reuses last frame's light where a hit lands on screen</td><td>Hardware: cascaded probes with a visibility test, on-screen hits reuse their light</td></tr>
+        <tr><th>Metro Exodus Enhanced (4A)</th><td>Screen space first, then hardware rays</td><td>DDGI-style probes for the further bounces</td><td>Per pixel</td><td>Hardware: multiple bounces from a probe volume</td></tr>
+        <tr><th>Assassin's Creed Shadows (Anvil)</th><td>Hardware ray tracing, short rays</td><td>Cascaded probe clipmap, probes moved out of walls</td><td>Per pixel at reduced resolution, heavy denoiser</td><td>Hardware: the probe visibility test, the firefly clamp</td></tr>
+        <tr><th>007 First Light (Glacier)</th><td>Signed distance fields (no ray tracing hardware), screen space</td><td>Probes</td><td>Screen-space per pixel with a probe fallback</td><td>Hardware: a ray hit that is on screen reuses its lit colour; Software: distance-field rays</td></tr>
         <tr><th>Lumen (UE 5)</th><td>Hardware ray tracing or signed distance fields</td><td>Surface cache, world radiance cache</td><td>Screen probes (High, Epic), irradiance field (Medium)</td><td><b>Software: surface cache and irradiance field</b>; Hardware: how the volume is read, short-range AO</td></tr>
-        <tr><th>AC Shadows (Anvil)</th><td>Hardware ray tracing, short rays</td><td>Cascaded probe clipmap</td><td>Per pixel at reduced resolution, heavy denoiser</td><td>Hardware: the probe visibility test, the firefly clamp</td></tr>
-        <tr><th>007 First Light (Glacier)</th><td>Signed distance fields, screen space</td><td>Probes</td><td>Screen-space per pixel with a probe fallback</td><td>Hardware: a ray hit that is on screen reuses its lit colour</td></tr>
+        <tr class="grp"><th colspan="5">Path tracing and ray-traced GI per pixel</th></tr>
+        <tr><th>Resident Evil Requiem, Pragmata (RE ENGINE)</th><td>Hardware path tracing, three bounces, a light grid to pick lights</td><td>None for GI</td><td>Per pixel; ReSTIR GI cuts the noise before DLSS Ray Reconstruction, with samples decorrelated on purpose</td><td>WindyGI's per-pixel preset 3 uses the same decorrelation before an AI denoiser; the sheets do not run it</td></tr>
+        <tr><th>Crimson Desert (BlackSpace, Pearl Abyss)</th><td>Hardware ray-traced GI per pixel with multiple bounces; full path tracing in its top preset</td><td>Not published (Digital Foundry's reading: little or no cache)</td><td>Per pixel; ray-traced and screen-space reflections mixed by distance</td><td>The opposite choice to WindyGI's cache-first one</td></tr>
+        <tr><th>Cyberpunk 2077 (RT Overdrive)</th><td>Hardware path tracing, ReSTIR for direct and indirect light</td><td>A world-space hashed radiance cache (SHaRC) for the tail of the path</td><td>ReSTIR per pixel, then NRD or DLSS Ray Reconstruction</td><td>Hardware: the hashed world radiance cache is the same family as WindyGI's; preset 3</td></tr>
+        <tr><th>UE 5 ReSTIR path tracing (NVIDIA, Zorah)</th><td>Hardware path tracing, a quarter of the pixels a frame</td><td>Lumen's cards as an early fallback</td><td>ReSTIR GI and PT, then DLSS Ray Reconstruction</td><td>Preset 3's family</td></tr>
+        <tr><th>GTA VI (RAGE, Rockstar)</th><td>Ray-traced GI, by Digital Foundry's reading of the trailers</td><td>Not published</td><td>Not published</td><td>Unknown: Rockstar has published no technical detail</td></tr>
+        <tr class="grp"><th colspan="5">No ray tracing</th></tr>
         <tr><th>Voxel GI (SVOGI, VXGI)</th><td>Cone tracing a voxelised scene</td><td>Voxels</td><td>Cones per pixel</td><td>Software: a voxel hit cache</td></tr>
-        <tr><th>Path tracing (Cyberpunk 2077)</th><td>Hardware ray tracing, paths</td><td>Radiance cache for the tail of the path</td><td>ReSTIR per pixel</td><td>WindyGI's preset 3 (per-pixel ReSTIR) is of this family; the sheets do not run it</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="note">The other systems are summarised from their published talks and papers, simplified to the axes that matter here. WindyGI's rows describe what the sheets run: preset 1 (cache first) for Hardware, the software preset for Software.</p>
+  <p class="note">The other systems are summarised from their published talks and papers (id Tech 8: SIGGRAPH 2025; RE ENGINE: GDC 2025; Snowdrop: GDC 2024; AC Shadows, Cyberpunk 2077 and UE 5 ReSTIR: GPU Zen 3 and 4), simplified to the axes that matter here. Crimson Desert and GTA VI have no technical talk yet: their rows are what Digital Foundry and the games' settings show, not what the developers have described. WindyGI's rows describe what the sheets run: preset 1 (cache first) for Hardware, the software preset for Software.</p>
 
   <h2 id="vs-lumen">WindyGI and Lumen: what is alike, what differs</h2>
   <p>WindyGI is not a port of Lumen. It solves the same problem in UE 4.27, borrows some of Lumen's building blocks and replaces others. In short:</p>
