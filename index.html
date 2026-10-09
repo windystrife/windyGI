@@ -36,6 +36,16 @@ ul.alike b { color: var(--ink); font-weight: 600; }
 .cmp td { color: var(--muted); width: 41.5%; }
 .cmp td b { color: var(--ink); font-weight: 600; }
 p.note { font-size: 14px; }
+.kin { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.kin div { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--sun); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.kin .lab { font: 500 12px/1.2 "IBM Plex Mono", ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.kin .who { font: 600 22px/1.1 "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; color: var(--ink); }
+.kin p { font-size: 15px; }
+.cmp tr.me th, .cmp tr.me td { background: rgba(240, 166, 64, .07); }
+.cmp tr.me th { color: var(--sun); }
+.cmp.sys table { min-width: 760px; }
+.cmp.sys tbody th { width: 16%; }
+.cmp.sys td { width: auto; }
 </style>
 <main>
   <div class="eyebrow">Real-time global illumination for Unreal Engine 4.27</div>
@@ -58,6 +68,41 @@ p.note { font-size: 14px; }
       <figcaption>GI cost per tier, WindyGI Software against Lumen SW, one panel per GPU and map.</figcaption>
     </figure>
   </div>
+
+  <h2 id="kin">Which GI is WindyGI closest to?</h2>
+  <p>WindyGI was not built to copy one engine. It started as a port of kajiya to UE 4.27 and was then reshaped after the real-time GI that shipped in games. As it stands now:</p>
+  <div class="kin">
+    <div>
+      <span class="lab">WindyGI Hardware is closest to</span>
+      <span class="who">id Tech 8 (DOOM: The Dark Ages)</span>
+      <p>Cache first: a world radiance cache in a spatial hash, cascaded irradiance probe volumes with a depth test against leaks, ray tracing spent on keeping those caches current, work on the async queue. The cache layers came from kajiya and from DDGI. What id Tech 8 has and WindyGI does not: a ray per pixel into those caches (WindyGI's pixels read the caches directly), and separate visibility and shading passes. At Low and Medium WindyGI is the probe volume alone, which is DDGI (RTXGI) read the way Lumen reads its irradiance field.</p>
+    </div>
+    <div>
+      <span class="lab">WindyGI Software is closest to</span>
+      <span class="who">Lumen, software, Medium</span>
+      <p>Lumen's surface cache brought to UE 4.27 (mesh cards, relighting, radiosity), rays that march signed distance fields, and the irradiance field Lumen uses at Medium as the final gather. It keeps that gather at every tier instead of switching to screen probes at High and Epic, traces only the global distance field and adds caches of its own.</p>
+    </div>
+  </div>
+
+  <h3>WindyGI among real-time GI systems</h3>
+  <div class="cmp sys">
+    <table>
+      <thead><tr><th>System</th><th>Rays</th><th>What is cached</th><th>Per-pixel gather</th><th>Shared with WindyGI</th></tr></thead>
+      <tbody>
+        <tr class="me"><th>WindyGI Hardware</th><td>Hardware ray tracing, updating the caches</td><td>World radiance cache (spatial hash, High and Epic) and cascaded irradiance probe volumes</td><td>None: each pixel reads the caches</td><td>–</td></tr>
+        <tr class="me"><th>WindyGI Software</th><td>Global distance field, sphere traced</td><td>Surface cache (mesh cards) and an irradiance field of probe clipmaps</td><td>Irradiance field, every tier</td><td>–</td></tr>
+        <tr><th>id Tech 8 (DOOM: The Dark Ages)</th><td>Hardware ray tracing, mostly for visibility</td><td>World radiance cache in a spatial hash, cascaded irradiance volumes</td><td>One ray per pixel that shades nothing: screen cache, then world cache, then volume</td><td><b>Hardware: the cache layers and the cache-first idea</b></td></tr>
+        <tr><th>kajiya (Embark)</th><td>Hardware ray tracing, long rays</td><td>World irradiance cache in a spatial hash</td><td>ReSTIR, one ray per pixel</td><td><b>Hardware: where it started</b>; the radiance cache</td></tr>
+        <tr><th>RTXGI / DDGI (NVIDIA)</th><td>Hardware ray tracing from probes</td><td>Probe volumes: irradiance and depth moments</td><td>None: pixels interpolate probes</td><td><b>Hardware Low and Medium</b>: the probe volume and its leak test</td></tr>
+        <tr><th>Lumen (UE 5)</th><td>Hardware ray tracing or signed distance fields</td><td>Surface cache, world radiance cache</td><td>Screen probes (High, Epic), irradiance field (Medium)</td><td><b>Software: surface cache and irradiance field</b>; Hardware: how the volume is read, short-range AO</td></tr>
+        <tr><th>AC Shadows (Anvil)</th><td>Hardware ray tracing, short rays</td><td>Cascaded probe clipmap</td><td>Per pixel at reduced resolution, heavy denoiser</td><td>Hardware: the probe visibility test, the firefly clamp</td></tr>
+        <tr><th>007 First Light (Glacier)</th><td>Signed distance fields, screen space</td><td>Probes</td><td>Screen-space per pixel with a probe fallback</td><td>Hardware: a ray hit that is on screen reuses its lit colour</td></tr>
+        <tr><th>Voxel GI (SVOGI, VXGI)</th><td>Cone tracing a voxelised scene</td><td>Voxels</td><td>Cones per pixel</td><td>Software: a voxel hit cache</td></tr>
+        <tr><th>Path tracing (Cyberpunk 2077)</th><td>Hardware ray tracing, paths</td><td>Radiance cache for the tail of the path</td><td>ReSTIR per pixel</td><td>WindyGI's preset 3 (per-pixel ReSTIR) is of this family; the sheets do not run it</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The other systems are summarised from their published talks and papers, simplified to the axes that matter here. WindyGI's rows describe what the sheets run: preset 1 (cache first) for Hardware, the software preset for Software.</p>
 
   <h2 id="vs-lumen">WindyGI and Lumen: what is alike, what differs</h2>
   <p>WindyGI is not a port of Lumen. It solves the same problem in UE 4.27, borrows some of Lumen's building blocks and replaces others. In short:</p>

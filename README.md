@@ -116,6 +116,18 @@ The Low rows (no GI in Lumen Low) are on the sheet. Build: `windygi-software-427
 
 All on Windows 11, the game at Normal priority on an otherwise idle machine. Each sheet shows the machine of the GPU you pick.
 
+## Which GI is WindyGI closest to?
+
+WindyGI started as a port of kajiya to UE 4.27 and was reshaped after the real-time GI that shipped in games
+([landing page, with a table of the systems](https://windystrife.github.io/windyGI/#kin)):
+
+- **WindyGI Hardware is closest to id Tech 8 (DOOM: The Dark Ages).** Cache first: a world radiance cache in a spatial hash and
+  cascaded irradiance probe volumes with a depth test against leaks, ray tracing spent on keeping them current, async compute.
+  Unlike id Tech 8 it has no per-pixel ray into the caches and no separate visibility pass. At Low and Medium it is the probe volume
+  alone, which is DDGI (RTXGI) read the way Lumen reads its irradiance field.
+- **WindyGI Software is closest to Lumen software at Medium.** Lumen's surface cache brought to UE 4.27, distance-field rays and
+  the irradiance field as the final gather, kept at every tier.
+
 ## WindyGI and Lumen: what is alike, what differs
 
 The full comparison is on the [landing page](https://windystrife.github.io/windyGI/#vs-lumen). In short:
