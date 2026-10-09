@@ -48,36 +48,42 @@ def legend(y):
 
 
 def gi_cost(sheet):
+    """Two panels per row (10-09: five GPUs x two maps made one column 2.5k px tall); a GPU's two maps share a row."""
     ps = panels([r for r in ROWS if r['sheet'] == sheet])
     body = [text(24, 36, f'GI cost per tier: {SHEET[sheet]}', 20, C['ink'], 600),
             text(24, 58, 'Frame time with GI on minus GI off, mean over the views, ms. Shorter is cheaper.', 13, C['muted'])] + legend(84)
     y = 104
-    x0, x1 = 120, 690
-    for (sh, gpu, res, mp), rows in ps:
-        rows = sorted(rows, key=lambda r: list(TN).index(r['tier']))
-        ph = 40 + 46 * len(rows) + 8
-        body.append(rect(16, y, W - 32, ph, C['panel'], 8))
-        body.append(text(32, y + 26, f'{gpu} · {res} · {mp}', 15, C['ink'], 600))
-        body.append(text(W - 32, y + 26, f'{rows[0]["views"]} views', 12, C['muted'], 400, 'end'))
-        vmax = max(max(r['w_gi'] or 0, r['l_gi'] or 0) for r in rows) * 1.08
-        yy = y + 44
-        for r in rows:
-            body.append(text(32, yy + 19, TN[r['tier']], 14, C['ink'], 600))
-            for i, (k, col) in enumerate((('w_gi', C['w']), ('l_gi', C['l']))):
-                by = yy + 2 + i * 18
-                v = r[k]
-                if v is None:
-                    body.append(text(x0, by + 12, 'Lumen Low: no GI', 12, C['muted'], 400, font=MONO))
-                    continue
-                bw = (x1 - x0) * v / vmax
-                body.append(rect(x0, by, bw, 14, col, 2))
-                body.append(text(x0 + bw + 6, by + 12, f'{v:.2f} ms', 12, C['ink'], 400, font=MONO))
-            if r['w_gi'] is not None and r['l_gi']:
-                ratio = r['w_gi'] / r['l_gi']
-                body.append(text(W - 32, yy + 21, f'{ratio:.2f}x Lumen', 13, C['good'] if ratio < 1 else C['bad'], 600, 'end', MONO))
-            yy += 46
-        y += ph + 12
-    body.append(text(24, y + 14, 'Bars are scaled per panel. Source: data/summary.json, built from the sheets.', 11, C['muted']))
+    gap, pw = 12, (W - 32 - 12) / 2
+    for j in range(0, len(ps), 2):
+        row_h = 0
+        for c, ((sh, gpu, res, mp), rows) in enumerate(ps[j:j + 2]):
+            px = 16 + c * (pw + gap)
+            rows = sorted(rows, key=lambda r: list(TN).index(r['tier']))
+            ph = 44 + 38 * len(rows) + 6
+            row_h = max(row_h, ph)
+            x0, x1 = px + 72, px + pw - 118
+            body.append(rect(px, y, pw, ph, C['panel'], 8))
+            body.append(text(px + 14, y + 24, f'{gpu} · {res}', 14, C['ink'], 600))
+            body.append(text(px + pw - 14, y + 24, f'{mp} · {rows[0]["views"]} views', 11, C['muted'], 400, 'end'))
+            vmax = max(max(r['w_gi'] or 0, r['l_gi'] or 0) for r in rows) * 1.08
+            yy = y + 40
+            for r in rows:
+                body.append(text(px + 14, yy + 17, TN[r['tier']], 13, C['ink'], 600))
+                for i, (k, col) in enumerate((('w_gi', C['w']), ('l_gi', C['l']))):
+                    by = yy + 2 + i * 15
+                    v = r[k]
+                    if v is None:
+                        body.append(text(x0, by + 11, 'Lumen Low: no GI', 11, C['muted'], 400, font=MONO))
+                        continue
+                    bw = (x1 - x0) * v / vmax
+                    body.append(rect(x0, by, bw, 12, col, 2))
+                    body.append(text(x0 + bw + 5, by + 10, f'{v:.2f}', 11, C['ink'], 400, font=MONO))
+                if r['w_gi'] is not None and r['l_gi']:
+                    ratio = r['w_gi'] / r['l_gi']
+                    body.append(text(px + pw - 14, yy + 18, f'{ratio:.2f}x', 13, C['good'] if ratio < 1 else C['bad'], 600, 'end', MONO))
+                yy += 38
+        y += row_h + gap
+    body.append(text(24, y + 14, 'ms; bars are scaled per panel; right: WindyGI\'s GI cost as a multiple of Lumen\'s. Source: data/summary.json, built from the sheets.', 11, C['muted']))
     return svg(y + 30, body, f'GI cost per tier, {SHEET[sheet]}')
 
 

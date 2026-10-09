@@ -30,15 +30,20 @@ def summarise(rows):
 
 MAPS = {'RT': 'Map_RT_Daylight', 'TG': 'TestGIMap'}
 rows = []
-# hardware sheets: one GPU and one map each (perf.meta.gpu, perf.tiers): hw/ (RX 9070 XT), then hw-<gpu_id>/ per further GPU
+# hardware sheets: since 2026-10-09 one sheet with several GPUs and both maps (gpus[].maps[map].tiers[tier]); the older one-GPU,
+# one-map format (perf.meta.gpu, perf.tiers) is still read for any hw-<gpu_id>/ sheet built that way
 for f in sorted(ROOT.glob('hw*/index.html'), key=lambda p: (p.parent.name != 'hw', p.parent.name)):
-    hw = sheet_data(f)['perf']
-    g = hw['meta']['gpu']
-    for t in TIERS:
-        s = summarise(hw['tiers'].get(t, []))
-        if s:
-            rows.append({'sheet': 'hw', 'gpu': g['gpu_name'], 'res': g['gpu_res'], 'map': 'Map_RT_Daylight', 'tier': t, **s,
-                         'machine': g.get('machine', ''), 'page': f.parent.name + '/'})
+    d = sheet_data(f)
+    if 'gpus' in d:
+        sheets = [(g['name'], g['res'], g.get('machine', ''), MAPS.get(mk, mk), m['tiers']) for g in d['gpus'] for mk, m in g['maps'].items()]
+    else:
+        g = d['perf']['meta']['gpu']
+        sheets = [(g['gpu_name'], g['gpu_res'], g.get('machine', ''), 'Map_RT_Daylight', d['perf']['tiers'])]
+    for name, res, machine, mp, tiers in sheets:
+        for t in TIERS:
+            s = summarise(tiers.get(t, []))
+            if s:
+                rows.append({'sheet': 'hw', 'gpu': name, 'res': res, 'map': mp, 'tier': t, **s, 'machine': machine, 'page': f.parent.name + '/'})
 # software sheet: several GPUs and maps (perf.gpus[].maps[map][tier])
 sw = sheet_data(ROOT / 'sw' / 'index.html')['perf']
 for g in sw['gpus']:
